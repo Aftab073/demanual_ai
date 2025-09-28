@@ -1,12 +1,11 @@
 fastapi
 uvicorn[standard]
 langchain
-google-generativeai
 requests
 python-dotenv
 pydantic
 httpx
-google-search-results
-langchain-google-genai
 openai
 huggingface-hub
+gunicorn
+serpapi
