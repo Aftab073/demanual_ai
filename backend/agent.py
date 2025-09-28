@@ -8,7 +8,7 @@ import os
 import logging
 from typing import List, Dict
 from dotenv import load_dotenv
-from serpapi import GoogleSearch
+from serpapi.google_search import GoogleSearch
 from huggingface_hub import InferenceClient
 from pathlib import Path
 

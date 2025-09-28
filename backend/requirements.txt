@@ -8,4 +8,4 @@ httpx
 openai
 huggingface-hub
 gunicorn
-serpapi
+google-search-results==2.4.2
