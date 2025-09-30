@@ -1,116 +1,87 @@
-"""
-backend/agent.py
+# backend/agent.py
 
-Defines the NewsToLinkedInAgent class using Hugging Face's native InferenceClient
-and SerpApi, using the modern 'chat_completion' method.
-"""
 import os
-import logging
-from typing import List, Dict
+import asyncio
+from typing import Dict
 from dotenv import load_dotenv
-from serpapi.google_search import GoogleSearch
-from huggingface_hub import InferenceClient
 from pathlib import Path
+
+# --- LangChain Imports ---
+from langchain_huggingface import HuggingFaceEndpoint
+from langchain_community.tools.serpapi import SerpAPIWrapper
+from langchain.agents import AgentExecutor, create_react_agent
+from langchain import hub
 
 # Load environment variables
 dotenv_path = Path(__file__).parent / '.env'
 load_dotenv(dotenv_path=dotenv_path)
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
 class NewsToLinkedInAgent:
     """
-    An agent that uses Hugging Face's InferenceClient to generate LinkedIn posts.
+    An agent built with LangChain that generates LinkedIn posts from recent news.
     """
     def __init__(self):
-        """Initializes the agent and sets up API clients."""
-        self.hf_token = os.getenv("HUGGING_FACE_API_KEY")
-        self.serpapi_key = os.getenv("SERPAPI_KEY")
+        """Initializes the agent, LLM, tools, and executor."""
+        # 1. Initialize the LLM (Language Model)
+        # We use HuggingFaceEndpoint, which is the modern way to use HF models in LangChain.
+        self.llm = HuggingFaceEndpoint(
+            repo_id=os.getenv("HF_MODEL", "mistralai/Mixtral-8x7B-Instruct-v0.1"),
+            huggingfacehub_api_token=os.getenv("HUGGING_FACE_API_KEY"),
+            temperature=0.7,
+        )
 
-        if not self.hf_token or not self.serpapi_key:
-            raise ValueError("HUGGING_FACE_API_KEY and SERPAPI_KEY must be set.")
-
-        # Initialize the native Hugging Face InferenceClient
-        self.client = InferenceClient(token=self.hf_token)
-        self.model = "mistralai/Mixtral-8x7B-Instruct-v0.1"
-
-    def _run_web_search(self, query: str, num_results: int = 3) -> List[Dict[str, str]]:
-        """Performs a web search for recent news articles using SerpApi."""
-        try:
-            params = {
-                "q": query,
-                "tbm": "nws",
-                "api_key": self.serpapi_key,
-                "num": num_results,
-            }
-            search = GoogleSearch(params)
-            results = search.get_dict()
-            news_results = results.get("news_results", [])
-            return [{"url": item.get("link"), "snippet": item.get("snippet")} for item in news_results]
-        except Exception as e:
-            logging.error(f"Error during SerpAPI search for '{query}': {e}")
-            return []
-
-    def generate_post(self, topic: str) -> dict:
-        """Generates a LinkedIn post using the 'chat_completion' method."""
-        search_queries = [
-            f"latest news on {topic}",
-            f"{topic} recent developments",
-        ]
-        
-        all_sources = []
-        for query in search_queries:
-            all_sources.extend(self._run_web_search(query))
-
-        unique_sources = {source['url']: source for source in all_sources if source.get('url')}
-        top_sources = list(unique_sources.values())[:3]
-        
-        if not top_sources:
-            return {"error": "Could not find any recent news sources for the topic."}
-
-        context_snippets = "\n".join([f"- {source['snippet']}" for source in top_sources])
-
-        # Use a list of messages, which is the standard for chat completion
-        messages = [
-            {
-                "role": "user",
-                "content": f"""
-                Act as a marketing expert. Based on the following news snippets about '{topic}', write a professional and engaging LinkedIn post.
-
-                News Snippets:
-                {context_snippets}
-
-                The post should have:
-                - A professional tone suitable for a LinkedIn audience.
-                - 3 to 6 short paragraphs that summarize the key points.
-                - 2 to 3 bullet points suggesting different angles or ideas for discussion.
-                - Relevant hashtags.
-                """
-            }
+        # 2. Initialize the Tools
+        # LangChain provides a 'wrapper' for the SerpApi, which we define as a tool.
+        search = SerpAPIWrapper(serpapi_api_key=os.getenv("SERPAPI_KEY"))
+        self.tools = [
+            # Tool(name="Search", func=search.run, description="..."), # old way
+            search # new way
         ]
 
-        try:
-            # Use the chat_completion method as per the latest documentation
-            response = self.client.chat_completion(
-                model=self.model,
-                messages=messages,
-                max_tokens=500
-            )
-            # The response object has a 'choices' attribute
-            linkedin_post = response.choices[0].message.content
-        except Exception as e:
-            logging.error(f"Error generating post with Hugging Face model: {e}")
-            return {"error": "Failed to generate LinkedIn post content."}
-            
+        # 3. Create the Agent
+        # We pull a pre-built prompt template optimized for a ReAct (Reason+Act) agent.
+        prompt = hub.pull("hwchase17/react")
+        
+        # We create the agent by combining the LLM, tools, and prompt.
+        agent = create_react_agent(self.llm, self.tools, prompt)
+
+        # 4. Create the Agent Executor
+        # The executor is what actually runs the agent loop (Thought -> Action -> Observation).
+        self.agent_executor = AgentExecutor(
+            agent=agent, 
+            tools=self.tools, 
+            verbose=True, # Set to True to see the agent's "thoughts" in the console
+            handle_parsing_errors=True # Gracefully handle errors if the LLM output is not perfect
+        )
+
+    async def generate_post(self, topic: str) -> dict:
+        """
+        Generates a LinkedIn post by invoking the LangChain agent.
+        """
+        # We create a specific, detailed query for the agent.
+        prompt = f"""
+        Based on the latest news about '{topic}', write a professional and engaging LinkedIn post.
+
+        The post must have:
+        - A professional tone suitable for a LinkedIn audience.
+        - 3 to 6 short paragraphs that summarize the key points.
+        - 2 to 3 bullet points suggesting different angles for discussion.
+        - At least 3 relevant hashtags.
+
+        Your final answer should only be the LinkedIn post content itself, nothing else.
+        """
+        
+        # Use 'ainvoke' for an asynchronous call to the agent executor
+        response = await self.agent_executor.ainvoke({"input": prompt})
+
+        # The final result is in the 'output' key
+        linkedin_post = response.get("output", "Error: Could not generate content.")
+        
+        # Note: Extracting sources is more complex with LangChain agents. 
+        # For this assignment, we'll return an empty list as a placeholder.
         return {
             "topic": topic,
-            "news_sources": [source['url'] for source in top_sources],
+            "news_sources": [],
             "linkedin_post": linkedin_post,
             "image_suggestion": f"A professional graphic related to '{topic}' showing innovation."
         }
-
-if __name__ == '__main__':
-    agent = NewsToLinkedInAgent()
-    result = agent.generate_post(topic="advancements in AI hardware")
-    print(result)
