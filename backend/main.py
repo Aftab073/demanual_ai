@@ -15,7 +15,7 @@ app = FastAPI(title="Demanual AI LinkedIn Post Generator")
 # Define the list of allowed origins for CORS
 origins = [
     "http://localhost",
-    "http://localhost:3000", # For React dev server
+    "http://localhost:5173", # For React dev server
     "http://127.0.0.1",
     "http://127.0.0.1:3000",
 ]
@@ -53,7 +53,7 @@ async def generate_post(request: GenerateRequest):
         raise HTTPException(status_code=400, detail="The 'topic' field cannot be empty.")
     
     # Generate the post using the agent
-    result = agent.generate_post(request.topic)
+    result = await agent.generate_post(request.topic)
     
     # Handle potential errors returned from the agent
     if "error" in result:
