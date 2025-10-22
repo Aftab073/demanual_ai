@@ -7,7 +7,7 @@ It sets up the API endpoints, handles requests, and integrates the NewsToLinkedI
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from .agent import NewsToLinkedInAgent
+from backend.agent import NewsToLinkedInAgent
 
 # Initialize the FastAPI application
 app = FastAPI(title="Demanual AI LinkedIn Post Generator")

@@ -2,13 +2,14 @@
 
 import os
 import asyncio
-from typing import Dict
+from typing import Dict, Any, List
+from langchain.tools import Tool
 from dotenv import load_dotenv
 from pathlib import Path
 
 # --- LangChain Imports ---
 from langchain_huggingface import HuggingFaceEndpoint
-from langchain_community.tools.serpapi import SerpAPIWrapper
+from langchain_community.utilities import SerpAPIWrapper
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain import hub
 
@@ -21,38 +22,34 @@ class NewsToLinkedInAgent:
     An agent built with LangChain that generates LinkedIn posts from recent news.
     """
     def __init__(self):
-        """Initializes the agent, LLM, tools, and executor."""
-        # 1. Initialize the LLM (Language Model)
-        # We use HuggingFaceEndpoint, which is the modern way to use HF models in LangChain.
+        serp_api_key = os.getenv("SERPAPI_KEY")
+        hf_api_key = os.getenv("HUGGING_FACE_API_KEY")
+
+        # 1. Initialize tools
+        search = SerpAPIWrapper(serpapi_api_key=serp_api_key)
+
+        # 2. Wrap the search tool so it has a name and description
+        self.tools = [
+            Tool(
+                name="Search Tool",
+                func=search.run,
+                description="Useful for searching current events or recent news about a topic."
+            )
+        ]
+
+        # 3. Create your Hugging Face LLM
         self.llm = HuggingFaceEndpoint(
             repo_id=os.getenv("HF_MODEL", "mistralai/Mixtral-8x7B-Instruct-v0.1"),
-            huggingfacehub_api_token=os.getenv("HUGGING_FACE_API_KEY"),
+            huggingfacehub_api_token=hf_api_key,
             temperature=0.7,
         )
 
-        # 2. Initialize the Tools
-        # LangChain provides a 'wrapper' for the SerpApi, which we define as a tool.
-        search = SerpAPIWrapper(serpapi_api_key=os.getenv("SERPAPI_KEY"))
-        self.tools = [
-            # Tool(name="Search", func=search.run, description="..."), # old way
-            search # new way
-        ]
-
-        # 3. Create the Agent
-        # We pull a pre-built prompt template optimized for a ReAct (Reason+Act) agent.
+        # 4. Pull a generic ReAct prompt from LangChain Hub (this is okay; Hub warning is harmless)
         prompt = hub.pull("hwchase17/react")
-        
-        # We create the agent by combining the LLM, tools, and prompt.
-        agent = create_react_agent(self.llm, self.tools, prompt)
 
-        # 4. Create the Agent Executor
-        # The executor is what actually runs the agent loop (Thought -> Action -> Observation).
-        self.agent_executor = AgentExecutor(
-            agent=agent, 
-            tools=self.tools, 
-            verbose=True, # Set to True to see the agent's "thoughts" in the console
-            handle_parsing_errors=True # Gracefully handle errors if the LLM output is not perfect
-        )
+        # 5. Initialize the actual ReAct agent
+        agent = create_react_agent(self.llm, self.tools, prompt)
+        self.agent_executor = AgentExecutor(agent=agent, tools=self.tools, verbose=True)
 
     async def generate_post(self, topic: str) -> dict:
         """
