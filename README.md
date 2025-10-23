@@ -1,81 +1,79 @@
-<h1 align="center">Demanual AI - LinkedIn Post Generator</h1>
+# Demanual AI: LinkedIn Post Generator
 
-<p align="center">
-  <em>An AI-powered backend service that automatically generates professional LinkedIn posts from recent news.</em>
-</p>
+Demanual AI is a smart agent that generates professional, engaging LinkedIn posts from a simple topic. It uses a multi-step reasoning process to search for the latest news on the web and then crafts a post in a style optimized for social media engagement.
 
-<hr>
+This project demonstrates a modern, full-stack AI application architecture using a Python backend, a powerful LLM, and a set of tools for real-world data retrieval.
 
-<h3>Project Description</h3>
+## Features
 
-<p>
-This project is a backend service that automatically generates professional LinkedIn posts based on a given topic. It fetches the latest news articles using the SerpApi web search API, synthesizes the information using a powerful large language model from Hugging Face, and formats the output into an engaging post complete with content ideas and hashtags. The entire project was built following step-by-step guidance, demonstrating a streamlined and "demanualized" development process.
-</p>
+-   **AI-Powered Content Creation:** Generates insightful LinkedIn posts complete with relevant hashtags.
+-   **Real-Time Web Search:** Uses the SerpAPI tool to find the latest news and information, ensuring content is timely and relevant.
+-   **Advanced Agentic Logic:** Built with LangChain, the AI agent uses a ReAct (Reasoning and Acting) framework to dynamically decide when to search for information and when to generate content.
+-   **Asynchronous API:** The backend is built with FastAPI, providing a high-performance, non-blocking API.
 
-<hr>
+## Tech Stack
 
-<h3>Tech Stack</h3>
+-   **Backend:** Python, FastAPI
+-   **AI/LLM:** LangChain, Google Gemini API
+-   **Tools:** SerpAPI for web search
 
-<ul>
-  <li><b>Backend:</b> Python 3.11, FastAPI</li>
-  <li><b>Web Server:</b> Gunicorn, Uvicorn</li>
-  <li><b>AI & LLMs:</b> Hugging Face InferenceClient (Mixtral model)</li>
-  <li><b>Web Search:</b> Google Search Results for Python (SerpApi)</li>
-  <li><b>Testing:</b> Pytest, HTTPX</li>
-  <li><b>Deployment:</b> Render</li>
-</ul>
+## Getting Started
 
-<hr>
+Follow these instructions to set up and run the project locally.
 
-<h3>Local Setup and Installation</h3>
+### Prerequisites
 
-<ol>
-  <li>
-    <strong>Clone the Repository</strong>
-    <pre><code>git clone https://github.com/Aftab073/demanual_ai.git
-cd demanual_ai</code></pre>
-  </li>
-  <li>
-    <strong>Create and Activate a Virtual Environment</strong>
-    <pre><code>python3 -m venv venv
-source venv/bin/activate</code></pre>
-  </li>
-  <li>
-    <strong>Set Up Environment Variables</strong>
-    <p>Copy the example environment file and add your secret API keys.</p>
-    <pre><code>cp backend/.env.example backend/.env</code></pre>
-    <p>Now, edit <code>backend/.env</code> with your keys.</p>
-  </li>
-  <li>
-    <strong>Install Dependencies</strong>
-    <pre><code>pip install -r backend/requirements.txt</code></pre>
-  </li>
-  <li>
-    <strong>Run the Development Server</strong>
-    <pre><code>uvicorn backend.main:app --reload</code></pre>
-    <p>The API is now available at <code>http://127.0.0.1:8000</code>.</p>
-  </li>
-</ol>
+-   Python 3.10+
+-   An API key from [Google AI Studio](https://aistudio.google.com/)
+-   An API key from [SerpAPI](https://serpapi.com/)
 
-<hr>
+### Installation
 
-<h3>API Usage and Endpoints</h3>
+1.  **Clone the repository:**
+    ```
+    git clone https://github.com/Aftab073/demanual_ai
+    cd demanual_ai/backend
+    ```
 
-<h4>Generate a Post</h4>
-<p>Send a <code>POST</code> request to the <code>/generate-post</code> endpoint with your desired topic.</p>
+2.  **Create and activate a virtual environment:**
+    ```
+    # For macOS/Linux
+    python3 -m venv venv
+    source venv/bin/activate
 
-<strong>Example cURL Request:</strong>
-<pre><code>curl -X POST "http://127.0.0.1:8000/generate-post" \
--H "Content-Type: application/json" \
--d '{"topic": "advancements in quantum computing"}'</code></pre>
+    # For Windows
+    python -m venv venv
+    venv\Scripts\activate
+    ```
 
-<h4>API Documentation (Swagger UI)</h4>
-<p>Interactive API documentation is available when the server is running.</p>
-<ul>
-    <li><b>Local URL:</b> <a href="http://127.0.0.1:8000/docs">http://127.0.0.1:8000/docs</a></li>
-    <li><b>Hosted URL:</b> <code>https://demanual-ai.onrender.com/docs</code></li>
-</ul>
+3.  **Install dependencies:**
+    ```
+    pip install -r requirements.txt
+    ```
 
-<hr>
+4.  **Configure environment variables:**
+    Create a file named `.env` inside the `backend/` directory and add your API keys:
+    ```
+    SERPAPI_KEY="your_serpapi_key_here"
+    GOOGLE_API_KEY="your_google_api_key_here"
+    ```
 
+### Running the Application
+
+1.  **Start the server:**
+    From within the `backend/` directory, run:
+    ```
+    uvicorn main:app --reload
+    ```
+
+2.  **Access the API:**
+    The API will be running at `http://127.0.0.1:8000`. You can access the interactive documentation at `http://127.0.0.1:8000/docs`.
+
+## Project Roadmap
+
+-   [x] **Core Agent Logic:** Develop a functional agent that can search and generate posts.
+-   [x] **API Development:** Expose the agent's functionality via a FastAPI backend.
+-   [ ] **Capture News Sources:** Enhance the agent to return the URLs of the news articles it used.
+-   [ ] **Real-Time Streaming:** Implement streaming to show the agent's thought process live.
+-   [ ] **Frontend UI:** Build a React-based user interface to interact with the agent.
 
