@@ -3,7 +3,7 @@ from httpx import AsyncClient
 from unittest.mock import MagicMock
 
 # Import the FastAPI app instance from your main file
-from backend.main import app
+from backend.app.main import app
 
 # Define a mock agent that returns a predictable response
 class MockNewsToLinkedInAgent:

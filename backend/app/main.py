@@ -4,7 +4,7 @@ import json
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from backend.agent import NewsToLinkedInAgent  # Corrected import
+from app.agent import NewsToLinkedInAgent  # Corrected import
 from fastapi.responses import StreamingResponse
 import asyncio
 
