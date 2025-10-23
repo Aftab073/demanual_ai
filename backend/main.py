@@ -1,7 +1,12 @@
+# backend/main.py
+
+import json
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from backend.agent import NewsToLinkedInAgent
+from backend.agent import NewsToLinkedInAgent  # Corrected import
+from fastapi.responses import StreamingResponse
+import asyncio
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -29,9 +34,9 @@ agent = NewsToLinkedInAgent()
 async def health():
     return {"status": "ok"}
 
-@app.post("/generate-post", summary="Generate LinkedIn Post")
+@app.post("/generate-post", summary="Generate LinkedIn Post (No Streaming)")
 async def generate_post(request: GenerateRequest):
-    """Accepts a topic and returns a generated LinkedIn post."""
+    """Accepts a topic and returns a generated LinkedIn post without streaming."""
     topic = request.topic.strip()
     if not topic:
         raise HTTPException(status_code=400, detail="The 'topic' field cannot be empty.")
@@ -40,5 +45,31 @@ async def generate_post(request: GenerateRequest):
         result = await agent.generate_post(topic)
         return result
     except Exception as e:
-        # Return a clear error message if anything goes wrong
         raise HTTPException(status_code=500, detail=f"An internal error occurred: {str(e)}")
+
+# --- NEW: Streaming Endpoint ---
+@app.post("/generate-post-stream", summary="Generate LinkedIn Post (with Streaming)")
+async def generate_post_stream(request: GenerateRequest):
+    """
+    Accepts a topic and streams the agent's thought process and final output.
+    """
+    topic = request.topic.strip()
+    if not topic:
+        raise HTTPException(status_code=400, detail="The 'topic' field cannot be empty.")
+
+    async def stream_agent_response():
+        """Asynchronous generator that yields agent steps as JSON strings."""
+        input_prompt = (
+            f"Write a professional LinkedIn post about the latest news on the topic: '{topic}'. "
+            "The post should be engaging, well-structured, and include 3 relevant hashtags."
+        )
+        
+        # Use the agent's `stream` method for real-time output
+        async for chunk in agent.agent_executor.stream({"input": input_prompt}):
+            # Each chunk is a dictionary representing a step in the agent's process
+            # We'll format it as a server-sent event (SSE)
+            yield f"data: {json.dumps(chunk)}\n\n"
+            await asyncio.sleep(0.1) # Small delay to make the stream more visible
+
+    return StreamingResponse(stream_agent_response(), media_type="text/event-stream")
+
