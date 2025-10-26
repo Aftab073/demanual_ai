@@ -1,7 +1,5 @@
-# backend/main.py
-
 import json
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from app.agent import NewsToLinkedInAgent  # Corrected import
@@ -18,7 +16,7 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -48,28 +46,82 @@ async def generate_post(request: GenerateRequest):
         raise HTTPException(status_code=500, detail=f"An internal error occurred: {str(e)}")
 
 # --- NEW: Streaming Endpoint ---
-@app.post("/generate-post-stream", summary="Generate LinkedIn Post (with Streaming)")
-async def generate_post_stream(request: GenerateRequest):
+# backend/app/main.py
+
+# ... (keep all your other imports and code) ...
+
+# --- THIS IS A TEMPORARY TEST ENDPOINT ---
+# backend/app/main.py
+
+@app.get("/generate-post-stream", summary="Generate LinkedIn Post (with Streaming)")
+async def generate_post_stream(topic: str = Query(..., min_length=1)):
     """
-    Accepts a topic and streams the agent's thought process and final output.
+    Accepts a topic as a query parameter and streams the agent's response.
     """
-    topic = request.topic.strip()
-    if not topic:
-        raise HTTPException(status_code=400, detail="The 'topic' field cannot be empty.")
 
     async def stream_agent_response():
-        """Asynchronous generator that yields agent steps as JSON strings."""
         input_prompt = (
             f"Write a professional LinkedIn post about the latest news on the topic: '{topic}'. "
             "The post should be engaging, well-structured, and include 3 relevant hashtags."
         )
         
-        # Use the agent's `stream` method for real-time output
-        async for chunk in agent.agent_executor.stream({"input": input_prompt}):
-            # Each chunk is a dictionary representing a step in the agent's process
-            # We'll format it as a server-sent event (SSE)
-            yield f"data: {json.dumps(chunk)}\n\n"
-            await asyncio.sleep(0.1) # Small delay to make the stream more visible
+        try:
+            loop = asyncio.get_running_loop()
+            
+            def get_stream_chunks():
+                chunks = []
+                for chunk in agent.agent_executor.stream({"input": input_prompt}):
+                    chunks.append(chunk)
+                return chunks
+            
+            chunks = await loop.run_in_executor(None, get_stream_chunks)
+            
+            # Process each chunk to extract serializable data
+            for chunk in chunks:
+                serializable_chunk = {}
+                
+                # Handle intermediate action steps
+                if "actions" in chunk and len(chunk["actions"]) > 0:
+                    action = chunk["actions"][0]
+                    serializable_chunk = {
+                        "type": "action",
+                        "tool": action.tool,
+                        "tool_input": str(action.tool_input),
+                        "log": action.log
+                    }
+                
+                # Handle observation/results - ACCESS ATTRIBUTES, NOT INDEX
+                elif "steps" in chunk and len(chunk["steps"]) > 0:
+                    agent_step = chunk["steps"][0]
+                    # AgentStep has .action and .observation attributes
+                    observation = str(agent_step.observation)[:200]
+                    serializable_chunk = {
+                        "type": "observation",
+                        "observation": observation
+                    }
+                
+                # Handle final output
+                elif "output" in chunk:
+                    serializable_chunk = {
+                        "type": "output",
+                        "output": chunk["output"]
+                    }
+                
+                # Only yield if we extracted something
+                if serializable_chunk:
+                    yield f"data: {json.dumps(serializable_chunk)}\n\n"
+                    await asyncio.sleep(0.05)
+            
+            yield "data: [DONE]\n\n"
 
-    return StreamingResponse(stream_agent_response(), media_type="text/event-stream")
+        except Exception as e:
+            print(f"Streaming error: {e}")
+            import traceback
+            traceback.print_exc()
+            error_message = {"type": "error", "error": str(e)}
+            yield f"data: {json.dumps(error_message)}\n\n"
 
+    response = StreamingResponse(stream_agent_response(), media_type="text/event-stream")
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Cache-Control"] = "no-cache"
+    return response
