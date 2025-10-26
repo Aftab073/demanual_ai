@@ -76,11 +76,13 @@ async def generate_post_stream(topic: str = Query(..., min_length=1)):
             
             chunks = await loop.run_in_executor(None, get_stream_chunks)
             
-            # Process each chunk to extract serializable data
+            # Track news sources
+            news_sources = []
+            
+            # Process each chunk
             for chunk in chunks:
                 serializable_chunk = {}
                 
-                # Handle intermediate action steps
                 if "actions" in chunk and len(chunk["actions"]) > 0:
                     action = chunk["actions"][0]
                     serializable_chunk = {
@@ -90,27 +92,42 @@ async def generate_post_stream(topic: str = Query(..., min_length=1)):
                         "log": action.log
                     }
                 
-                # Handle observation/results - ACCESS ATTRIBUTES, NOT INDEX
                 elif "steps" in chunk and len(chunk["steps"]) > 0:
                     agent_step = chunk["steps"][0]
-                    # AgentStep has .action and .observation attributes
-                    observation = str(agent_step.observation)[:200]
+                    observation = str(agent_step.observation)[:500]
+                    
+                    # Extract news sources from observation
+                    # The search tool returns titles and links
+                    if "Title:" in observation and "Link:" in observation:
+                        lines = observation.split('\n')
+                        for i, line in enumerate(lines):
+                            if line.startswith('Title:') and i + 1 < len(lines) and lines[i + 1].startswith('Link:'):
+                                title = line.replace('Title:', '').strip()
+                                link = lines[i + 1].replace('Link:', '').strip()
+                                if title and link and len(news_sources) < 3:
+                                    news_sources.append({
+                                        "title": title,
+                                        "link": link
+                                    })
+                    
                     serializable_chunk = {
                         "type": "observation",
                         "observation": observation
                     }
                 
-                # Handle final output
                 elif "output" in chunk:
                     serializable_chunk = {
                         "type": "output",
                         "output": chunk["output"]
                     }
                 
-                # Only yield if we extracted something
                 if serializable_chunk:
                     yield f"data: {json.dumps(serializable_chunk)}\n\n"
                     await asyncio.sleep(0.05)
+            
+            # Send news sources at the end
+            if news_sources:
+                yield f"data: {json.dumps({'type': 'sources', 'sources': news_sources})}\n\n"
             
             yield "data: [DONE]\n\n"
 
