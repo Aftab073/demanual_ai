@@ -48,13 +48,7 @@ async def generate_post(request: GenerateRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An internal error occurred: {str(e)}")
 
-# --- NEW: Streaming Endpoint ---
-# backend/app/main.py
 
-# ... (keep all your other imports and code) ...
-
-# --- THIS IS A TEMPORARY TEST ENDPOINT ---
-# backend/app/main.py
 
 @app.get("/generate-post-stream", summary="Generate LinkedIn Post (with Streaming)")
 async def generate_post_stream(topic: str = Query(..., min_length=1)):

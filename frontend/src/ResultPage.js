@@ -8,7 +8,7 @@ import toast, { Toaster } from 'react-hot-toast';
 function ResultPage() {
   const [searchParams] = useSearchParams();
   const topic = searchParams.get('topic');
-  
+
   const [agentResponse, setAgentResponse] = useState({ steps: [], finalAnswer: '', sources: [] });
   const [isStreaming, setIsStreaming] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -22,6 +22,9 @@ function ResultPage() {
     if (!topic || fetchInitiated.current) return;
     fetchInitiated.current = true;
 
+    const API_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000';
+
+
     const handleGenerate = async () => {
       setAgentResponse({ steps: [], finalAnswer: '', sources: [] });
       setIsStreaming(true);
@@ -29,7 +32,7 @@ function ResultPage() {
       setCurrentStage('Searching');
 
       try {
-        const url = `http://127.0.0.1:8000/generate-post-stream?topic=${encodeURIComponent(topic)}`;
+        const url = `${API_URL}/generate-post-stream?topic=${encodeURIComponent(topic)}`;
         const response = await fetch(url);
 
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -49,25 +52,25 @@ function ResultPage() {
           for (const part of parts) {
             if (part.startsWith('data: ')) {
               const dataString = part.substring(6);
-              
+
               if (dataString === '[DONE]') {
                 setIsStreaming(false);
                 setProgress(100);
                 setCurrentStage('Complete');
                 return;
               }
-              
+
               try {
                 const chunk = JSON.parse(dataString);
-                
+
                 if (chunk.type === 'action') {
                   const stepText = `🔍 ${chunk.tool}: ${chunk.tool_input}`;
-                  setAgentResponse(prev => ({...prev, steps: [...prev.steps, stepText]}));
+                  setAgentResponse(prev => ({ ...prev, steps: [...prev.steps, stepText] }));
                   setProgress(33);
                   setCurrentStage('Searching');
                 } else if (chunk.type === 'observation') {
                   const stepText = `📊 Found: ${chunk.observation.substring(0, 100)}...`;
-                  setAgentResponse(prev => ({...prev, steps: [...prev.steps, stepText]}));
+                  setAgentResponse(prev => ({ ...prev, steps: [...prev.steps, stepText] }));
                   setProgress(66);
                   setCurrentStage('Analyzing');
                 } else if (chunk.type === 'output') {
@@ -108,7 +111,7 @@ function ResultPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] relative overflow-hidden">
       <Toaster position="top-center" />
-      
+
       {/* Dynamic Light Beam */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[2px] h-full pointer-events-none z-0">
         <motion.div
@@ -126,7 +129,7 @@ function ResultPage() {
             ease: "easeInOut"
           }}
         />
-        
+
         <motion.div
           className="absolute top-0 left-1/2 -translate-x-1/2 w-[2px] h-full bg-gradient-to-b from-transparent via-blue-400 to-transparent"
           animate={{
@@ -153,7 +156,7 @@ function ResultPage() {
               <span>Back</span>
             </motion.button>
           </Link>
-          
+
           <div className="flex items-center space-x-2">
             <FaLinkedin className="text-2xl text-[#0A66C2]" />
             <span className="text-white font-semibold">PostGenius AI</span>
@@ -182,13 +185,12 @@ function ResultPage() {
             <div className="flex justify-between items-center mb-3">
               {stages.map((stage, index) => (
                 <div key={stage} className="flex items-center">
-                  <div className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                    currentStage === stage 
-                      ? 'bg-[#0A66C2] text-white' 
-                      : progress > (index * 33) 
-                        ? 'bg-blue-900/50 text-blue-300' 
+                  <div className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${currentStage === stage
+                      ? 'bg-[#0A66C2] text-white'
+                      : progress > (index * 33)
+                        ? 'bg-blue-900/50 text-blue-300'
                         : 'bg-white/5 text-gray-500'
-                  }`}>
+                    }`}>
                     {stage}
                   </div>
                   {index < stages.length - 1 && (
@@ -197,7 +199,7 @@ function ResultPage() {
                 </div>
               ))}
             </div>
-            
+
             <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
               <motion.div
                 className="h-full bg-gradient-to-r from-[#0A66C2] to-blue-400"
@@ -247,7 +249,7 @@ function ResultPage() {
               <h2 className="text-2xl font-bold text-white flex items-center">
                 <span className="mr-2">✨</span> Your LinkedIn Post
               </h2>
-              
+
               <motion.button
                 onClick={handleCopy}
                 whileHover={{ scale: 1.05 }}
@@ -258,7 +260,7 @@ function ResultPage() {
                 <span>{copied ? 'Copied!' : 'Copy'}</span>
               </motion.button>
             </div>
-            
+
             <div className="text-gray-200 whitespace-pre-wrap leading-relaxed mb-6">
               {agentResponse.finalAnswer}
             </div>

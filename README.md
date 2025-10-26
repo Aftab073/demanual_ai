@@ -1,18 +1,10 @@
-Perfect! Your screenshots look **ABSOLUTELY STUNNING**! 🎉 I can see both your HomePage with the beautiful light beam and your ResultPage with the AI generation process. These are perfect for showcasing your project!
-
-Here's an **updated README using YOUR actual screenshots**:
-
 ***
 
 # 🚀 PostGenius AI - LinkedIn Post Generator
 
 <div align="center">
 
-![PostGenius AI Homepage](./ topic into viral LinkedIn posts with AI*
 
-[![React](https://img.shields.io/badge/React-19.2.0-61DAFB?logo=reactI](https://img.shields.io/badge/FastAPI-Latest-009688?logo=fastapi](https://img.shields.io/badge/Python-3.12+-3776AB?logo=python&logohttps://img.shields.io/badge/LinkedIn-Optimized-0A  Real-Time Streaming -  Cinematic UI**
-
-[Live Demo](#) -  [Documentation](#) -  [Report Bug](#)
 
 </div>
 
